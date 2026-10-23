@@ -13,26 +13,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          tools: composer:v2
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-
-      - name: Install PHP dependencies
-        run: composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
-
-      - name: Build frontend assets
-        run: |
-          npm ci
-          npm run build
-
       - name: Configure SSH
         run: |
           install -m 700 -d ~/.ssh
@@ -40,30 +20,23 @@ jobs:
           chmod 600 ~/.ssh/id_deploy
           ssh-keyscan -p "${{ secrets.SSH_PORT }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Sync files
-        run: |
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/id_deploy -p ${{ secrets.SSH_PORT }}" \
-            --exclude='.git' --exclude='.github' --exclude='.env' \
-            --exclude='node_modules' --exclude='tests' \
-            --exclude='/storage/app' --exclude='/storage/logs' \
-            --exclude='/storage/framework/cache' --exclude='/storage/framework/sessions' \
-            --exclude='/storage/framework/views' \
-            ./ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/"
-
-      - name: Run release commands
+      - name: Pull and release on server
         run: |
           ssh -i ~/.ssh/id_deploy -p "${{ secrets.SSH_PORT }}" \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "cd ${{ secrets.DEPLOY_PATH }} \
-              && mkdir -p storage/app/public storage/logs storage/framework/{cache/data,sessions,views} \
-              && php artisan down --retry=30 || true; \
-            cd ${{ secrets.DEPLOY_PATH }} \
-              && php artisan migrate --force \
-              && php artisan storage:link || true; \
-            cd ${{ secrets.DEPLOY_PATH }} \
-              && php artisan optimize:clear \
-              && php artisan config:cache \
-              && php artisan route:cache \
-              && php artisan view:cache \
-              && php artisan up"
+            "bash -se" <<'EOF'
+          set -e
+          cd "${{ secrets.DEPLOY_PATH }}"
+
+          php artisan down --retry=30 || true
+          trap 'php artisan up' EXIT
+
+          git pull --ff-only origin main
+          composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+
+          php artisan migrate --force
+          php artisan optimize:clear
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          EOF
