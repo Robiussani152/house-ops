@@ -2,7 +2,7 @@
 name: "git-commit-pusher"
 description: "Stage, commit, push per project git rules, then merge a feature branch into develop. Use for 'commit and push', 'save my work', 'push these changes'. Releases (develop→main, which deploys) only via /commit-push release."
 tools: Bash, Read, Grep
-model: sonnet
+model: haiku
 color: yellow
 ---
 
