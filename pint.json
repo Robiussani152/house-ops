@@ -1,0 +1,25 @@
+{
+    "preset": "empty",
+    "rules": {
+        "@PhpCsFixer": true,
+        "@PHP8x5Migration": true,
+        "linebreak_after_opening_tag": true,
+        "blank_line_after_opening_tag": false,
+        "yoda_style": {"equal": false, "identical": false, "less_and_greater": false},
+        "phpdoc_separation": false,
+        "phpdoc_align": false,
+        "return_assignment": false,
+        "phpdoc_types_order": {"null_adjustment": "always_last", "sort_algorithm": "alpha"},
+        "octal_notation": false,
+        "trailing_comma_in_multiline": {"elements": ["arguments", "arrays", "match", "parameters"]},
+        "class_attributes_separation": {
+            "elements": {
+                "const": "only_if_meta",
+                "method": "one",
+                "property": "only_if_meta",
+                "trait_import": "none",
+                "case": "none"
+            }
+        }
+    }
+}

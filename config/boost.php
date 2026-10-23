@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Boost Master Switch
@@ -113,5 +112,4 @@ return [
             'guidelines_path' => 'BOOST.md',
         ],
     ],
-
 ];

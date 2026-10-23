@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Fresh Laravel 13 / PHP 8.3+ skeleton (Tailwind 4 + Vite 8, PHPUnit 12, Pint). So far there is one route (`/` → `welcome` view) and the default `User` model. Check `routes/` and `app/` for what has been added since.
+Fresh Laravel 13 / PHP 8.5 skeleton (Tailwind 4 + Vite 8, Pest 4, Pint, Larastan). So far there is one route (`/` → `welcome` view) and the default `User` model. Check `routes/` and `app/` for what has been added since.
 
 ## Commands
 
@@ -18,9 +18,10 @@ Local development runs in Laravel Sail, so prefix PHP, Artisan, Composer and npm
 vendor/bin/sail up -d
 vendor/bin/sail composer run dev                         # runs `php artisan dev` (server + Vite etc.)
 vendor/bin/sail artisan test                             # all tests (composer test clears config first)
-vendor/bin/sail artisan test --filter=ExampleTest        # single test class/method
+vendor/bin/sail artisan test --filter=ExampleTest        # single test (Pest)
 vendor/bin/sail artisan test tests/Feature/ExampleTest.php
 vendor/bin/sail bin pint --dirty                         # format changed PHP files
+vendor/bin/sail composer analyse                         # PHPStan + Larastan (phpstan.neon, level 5)
 vendor/bin/sail npm run build                            # needed if you see "Unable to locate file in Vite manifest"
 ```
 
