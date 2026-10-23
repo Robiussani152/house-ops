@@ -38,7 +38,7 @@ Follow the `git-workflow` skill's release policy for *what* happens (merge `deve
 0. **State the explicit authorization first.** Quote verbatim the user's words authorizing the release, as given in your task prompt (e.g. `User explicitly ran "/commit-push release"`). If your task prompt has no such quote, STOP and ask the invoking agent/user to confirm before touching `main`.
 1. **Record the starting branch:** `START=$(git branch --show-current)`. It must be `develop` or a feature branch — never `main`.
 2. **Flush pending work first.** Commit and push any pending changes on `START` via the Workflow above. Do not edit files during the release.
-3. **Merge and push:** `git checkout main`, `git pull --ff-only`, `git merge develop`. On conflict, `git merge --abort`, return to `START`, and report. Otherwise `git push origin main`.
+3. **Merge and push:** `git checkout main`, `git pull --ff-only`, `git merge develop`. On conflict, `git merge --abort`, return to `START`, and report. Otherwise `CLAUDE_ALLOW_MAIN_PUSH=1 git push origin main` (the sentinel tells the block-dangerous-commands hook this push is a deliberate release).
 4. **Return to the starting branch immediately:** `git checkout "$START"`. Never end a release on `main`.
 5. **Report:** starting branch, what was merged, the push result, and confirmation the active branch is back to `START`. Note that the push triggers the production deploy.
 
