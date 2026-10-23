@@ -28,6 +28,6 @@ metadata:
 
 ## Safety
 
-- Never force-push `main` or `develop`.
+- Never force-push `main`.
 - Never change git config.
 - Avoid destructive git commands unless explicitly requested.

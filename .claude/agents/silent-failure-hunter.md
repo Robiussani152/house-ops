@@ -2,7 +2,7 @@
 name: "silent-failure-hunter"
 description: "Hunts silently swallowed failures in code changes to the house-ops Laravel app: empty or log-only catch blocks, caught \\Throwable/\\Exception that hides real errors, ignored return values (->first()/->find() used without a null check, unchecked json_decode/DB write results), and jobs/listeners that swallow exceptions instead of failing. Use after editing services, jobs, controllers or integration clients, or before merging error-handling changes. Reports findings ranked by severity; never modifies code."
 tools: Bash, Read, Grep, Glob, mcp__laravel-boost__search-docs
-model: opus
+model: sonnet
 color: yellow
 ---
 
