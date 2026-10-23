@@ -36,6 +36,8 @@ Hunt these patterns, highest-blast-radius first:
    - New `where` / `orderBy` / `whereHas` on a column with no supporting index (check `database-schema` / `SHOW INDEX`), on a table large enough to matter.
    - `whereHas` / `withCount` used where a simpler join or eager-loaded constraint would avoid a correlated subquery per row.
 
+- **Filament tables/widgets:** relation columns (`TextColumn::make('author.name')`) without eager loading in `getEloquentQuery()`/`modifyQueryUsing`, and unindexed searchable/sortable columns.
+
 ## Method
 
 1. **Scope the diff.** Default to working changes: `git diff`, `git diff --staged`, `git status`. If the user names a branch/PR/files, scope to those. Read the full changed files, not just hunks — an N+1 is judged by where the query is issued vs. where the relation is consumed (often controller loads, view/resource consumes).
