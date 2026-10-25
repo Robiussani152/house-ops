@@ -5,7 +5,7 @@ namespace App\Filament\Resources\Roles\Pages;
 use App\Filament\Resources\Roles\RoleResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
-use Spatie\Permission\PermissionRegistrar;
+use Spatie\Permission\Models\Role;
 
 class ManageRoles extends ManageRecords
 {
@@ -14,7 +14,9 @@ class ManageRoles extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->after(fn () => app(PermissionRegistrar::class)->forgetCachedPermissions()),
+            CreateAction::make()
+                ->modalWidth('3xl')
+                ->using(fn (array $data): Role => RoleResource::saveRole(new Role(), $data)),
         ];
     }
 }

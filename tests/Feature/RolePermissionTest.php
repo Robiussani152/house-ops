@@ -85,10 +85,8 @@ it('lets a super admin through every module without roles', function (): void {
 
 it('creates a role with permissions', function (): void {
     $this->actingAs(User::factory()->admin()->create());
-    $ids = Permission::whereIn('name', ['staff.view', 'payroll.view'])->pluck('id')->all();
-
     Livewire::test(ManageRoles::class)
-        ->callAction('create', ['name' => 'Supervisor', 'permissions' => $ids])
+        ->callAction('create', ['name' => 'Supervisor', 'permissions' => ['staff' => ['staff.view'], 'payroll' => ['payroll.view']]])
         ->assertHasNoActionErrors()
     ;
 
@@ -100,10 +98,9 @@ it('creates a role with permissions', function (): void {
 it('edits a role and replaces its permissions', function (): void {
     $this->actingAs(User::factory()->admin()->create());
     $role = Role::create(['name' => 'Supervisor'])->givePermissionTo('staff.view');
-    $new = Permission::where('name', 'shifts.view')->value('id');
 
     Livewire::test(ManageRoles::class)
-        ->callAction(TestAction::make('edit')->table($role), ['name' => 'Lead', 'permissions' => [$new]])
+        ->callAction(TestAction::make('edit')->table($role), ['name' => 'Lead', 'permissions' => ['staff' => [], 'shifts' => ['shifts.view']]])
         ->assertHasNoActionErrors()
     ;
 

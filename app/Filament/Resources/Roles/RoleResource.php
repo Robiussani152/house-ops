@@ -11,14 +11,16 @@ use Filament\Actions\EditAction;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Spatie\Permission\Models\Permission;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
 class RoleResource extends Resource
 {
@@ -34,18 +36,52 @@ class RoleResource extends Resource
                 TextInput::make('name')
                     ->required()
                     ->unique(ignoreRecord: true),
-                CheckboxList::make('permissions')
-                    ->relationship('permissions', 'name', fn (Builder $query) => $query->orderBy('id'))
-                    ->getOptionLabelFromRecordUsing(function (Permission $permission): string {
-                        [$module, $action] = explode('.', $permission->name);
-
-                        return (ModulePolicy::MODULES[$module]['label'] ?? $module).': '.$action;
-                    })
-                    ->columns(4)
-                    ->gridDirection('row')
-                    ->bulkToggleable(),
+                Grid::make(1)
+                    ->schema(array_map(
+                        fn (string $module, array $definition): Section => Section::make($definition['label'])
+                            ->compact()
+                            ->schema([
+                                CheckboxList::make("permissions.{$module}")
+                                    ->hiddenLabel()
+                                    ->options(collect($definition['actions'])
+                                        ->mapWithKeys(fn (string $action): array => ["{$module}.{$action}" => ucfirst($action)])
+                                        ->all())
+                                    ->columns(2)
+                                    ->bulkToggleable(),
+                            ]),
+                        array_keys(ModulePolicy::MODULES),
+                        ModulePolicy::MODULES,
+                    )),
             ])
         ;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function fillPermissions(Role $role, array $data): array
+    {
+        $data['permissions'] = $role->permissions
+            ->pluck('name')
+            ->groupBy(fn (string $name): string => explode('.', $name)[0])
+            ->map(fn ($names): array => $names->values()->all())
+            ->all()
+        ;
+
+        return $data;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public static function saveRole(Role $role, array $data): Role
+    {
+        return DB::transaction(function () use ($role, $data): Role {
+            $role->fill(['name' => $data['name']])->save();
+            $role->syncPermissions(Arr::flatten($data['permissions'] ?? []));
+
+            return $role;
+        });
     }
 
     public static function table(Table $table): Table
@@ -61,8 +97,10 @@ class RoleResource extends Resource
                     ->label('Admins'),
             ])
             ->recordActions([
-                // the role row is saved before its permission pivot, so clear the cache again afterwards
-                EditAction::make()->after(fn () => app(PermissionRegistrar::class)->forgetCachedPermissions()),
+                EditAction::make()
+                    ->modalWidth('3xl')
+                    ->mutateRecordDataUsing(fn (Role $record, array $data): array => static::fillPermissions($record, $data))
+                    ->using(fn (Role $record, array $data): Role => static::saveRole($record, $data)),
                 DeleteAction::make(),
             ])
             ->toolbarActions([
