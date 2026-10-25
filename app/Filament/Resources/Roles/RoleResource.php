@@ -24,6 +24,8 @@ class RoleResource extends Resource
 {
     protected static ?string $model = Role::class;
     protected static \BackedEnum|string|null $navigationIcon = Heroicon::OutlinedKey;
+    protected static string|\UnitEnum|null $navigationGroup = 'Administration';
+    protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
     {

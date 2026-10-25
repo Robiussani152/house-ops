@@ -19,6 +19,8 @@ class Payroll extends Page implements HasTable
 {
     use InteractsWithTable;
     protected static \BackedEnum|string|null $navigationIcon = Heroicon::OutlinedBanknotes;
+    protected static string|\UnitEnum|null $navigationGroup = 'Staff Management';
+    protected static ?int $navigationSort = 4;
     protected string $view = 'filament.pages.payroll';
 
     /**

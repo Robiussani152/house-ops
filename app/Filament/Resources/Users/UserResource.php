@@ -25,6 +25,8 @@ class UserResource extends Resource
     protected static ?string $modelLabel = 'admin';
     protected static ?string $navigationLabel = 'Admins';
     protected static \BackedEnum|string|null $navigationIcon = Heroicon::OutlinedShieldCheck;
+    protected static string|\UnitEnum|null $navigationGroup = 'Administration';
+    protected static ?int $navigationSort = 1;
 
     public static function form(Schema $schema): Schema
     {

@@ -30,6 +30,8 @@ class StaffAttendanceResource extends Resource
 {
     protected static ?string $model = StaffAttendance::class;
     protected static \BackedEnum|string|null $navigationIcon = Heroicon::OutlinedCalendarDays;
+    protected static string|\UnitEnum|null $navigationGroup = 'Staff Management';
+    protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
     {

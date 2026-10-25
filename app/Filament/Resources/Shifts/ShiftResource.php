@@ -20,6 +20,8 @@ class ShiftResource extends Resource
 {
     protected static ?string $model = Shift::class;
     protected static \BackedEnum|string|null $navigationIcon = Heroicon::OutlinedClock;
+    protected static string|\UnitEnum|null $navigationGroup = 'Staff Management';
+    protected static ?int $navigationSort = 3;
 
     public static function form(Schema $schema): Schema
     {

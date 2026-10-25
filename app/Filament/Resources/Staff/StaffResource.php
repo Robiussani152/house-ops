@@ -29,6 +29,8 @@ class StaffResource extends Resource
 {
     protected static ?string $model = Staff::class;
     protected static \BackedEnum|string|null $navigationIcon = Heroicon::OutlinedUserGroup;
+    protected static string|\UnitEnum|null $navigationGroup = 'Staff Management';
+    protected static ?int $navigationSort = 1;
 
     public static function form(Schema $schema): Schema
     {
