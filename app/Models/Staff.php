@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
 #[Fillable(['name', 'image', 'monthly_salary', 'base_tasks', 'shift_id', 'is_active'])]
@@ -16,6 +17,8 @@ class Staff extends Model
 {
     /** @use HasFactory<StaffFactory> */
     use HasFactory;
+
+    use SoftDeletes;
     public const DAYS_PER_MONTH = 30;
 
     /**
@@ -43,7 +46,7 @@ class Staff extends Model
             return Storage::disk('public')->url($this->image);
         }
 
-        $initials = collect(preg_split('/\s+/', trim($this->name)))
+        $initials = collect(preg_split('/\s+/u', trim($this->name)) ?: [])
             ->take(2)
             ->map(fn (string $word): string => mb_strtoupper(mb_substr($word, 0, 1)))
             ->implode('')
@@ -84,6 +87,16 @@ class Staff extends Model
             'tasks_done' => (int) $totals->tasks_done,
             'amount' => round($amount, 2),
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // payrollFor divides by base_tasks, so a zero must fail when written, not when payroll renders.
+        static::saving(function (Staff $staff): void {
+            if ($staff->base_tasks < 1) {
+                throw new \InvalidArgumentException('base_tasks must be at least 1.');
+            }
+        });
     }
 
     /**

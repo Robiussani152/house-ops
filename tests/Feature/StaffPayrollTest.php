@@ -10,6 +10,8 @@ use App\Models\StaffAttendance;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -61,7 +63,7 @@ it('falls back to an initials avatar without an image', function (): void {
 });
 
 it('rejects a second attendance for the same staff and day', function (): void {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->admin()->create());
     $staff = Staff::factory()->create();
     attend($staff, '2026-10-01');
 
@@ -72,7 +74,7 @@ it('rejects a second attendance for the same staff and day', function (): void {
 });
 
 it('renders the admin pages', function (): void {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->admin()->create());
     $staff = Staff::factory()->create();
     attend($staff, now()->toDateString());
 
@@ -82,7 +84,7 @@ it('renders the admin pages', function (): void {
 });
 
 it('shows the amount for the selected month on the payroll page', function (): void {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->admin()->create());
     $staff = Staff::factory()->create();
     attend($staff, now()->subMonth()->startOfMonth()->toDateString(), ['tasks_done' => 4]);
 
@@ -141,16 +143,24 @@ it('uses the uploaded image instead of the initials avatar', function (): void {
     expect($url)->toContain('staff/jane.jpg')->not->toContain('data:image/svg+xml');
 });
 
-it('excludes inactive staff from payroll', function (): void {
-    $this->actingAs(User::factory()->create());
-    $inactive = Staff::factory()->create(['is_active' => false]);
+it('shows inactive or deleted staff only for months they worked', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    $inactive = Staff::factory()->create(['is_active' => false, 'name' => 'Inactive Worker']);
+    $idle = Staff::factory()->create(['is_active' => false, 'name' => 'Idle Person']);
+    $deleted = Staff::factory()->create(['name' => 'Deleted Worker']);
     attend($inactive, now()->toDateString());
+    attend($deleted, now()->toDateString());
+    $deleted->delete();
 
-    Livewire::test(Payroll::class)->assertDontSee($inactive->name);
+    Livewire::test(Payroll::class)
+        ->assertSee('Inactive Worker')
+        ->assertSee('Deleted Worker')
+        ->assertDontSee('Idle Person')
+    ;
 });
 
 it('creates staff through the form', function (): void {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->admin()->create());
     $shift = Shift::factory()->create();
 
     Livewire::test(ManageStaff::class)
@@ -165,7 +175,7 @@ it('creates staff through the form', function (): void {
 });
 
 it('validates the staff form', function (array $data, array $errors): void {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->admin()->create());
 
     Livewire::test(ManageStaff::class)
         ->callAction('create', $data + ['name' => 'Jane', 'monthly_salary' => 3000, 'base_tasks' => 3])
@@ -178,7 +188,7 @@ it('validates the staff form', function (array $data, array $errors): void {
 ]);
 
 it('edits staff through the table action', function (): void {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->admin()->create());
     $staff = Staff::factory()->create();
 
     Livewire::test(ManageStaff::class)
@@ -190,7 +200,7 @@ it('edits staff through the table action', function (): void {
 });
 
 it('creates a shift', function (): void {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->admin()->create());
 
     Livewire::test(ManageShifts::class)
         ->callAction('create', ['name' => 'Night', 'starts_at' => '20:00', 'ends_at' => '04:00'])
@@ -201,7 +211,7 @@ it('creates a shift', function (): void {
 });
 
 it('creates an attendance record', function (): void {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->admin()->create());
     $staff = Staff::factory()->create();
 
     Livewire::test(ManageStaffAttendances::class)
@@ -213,7 +223,7 @@ it('creates an attendance record', function (): void {
 });
 
 it('hides tasks when absent and paid absence when present', function (): void {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->admin()->create());
 
     Livewire::test(ManageStaffAttendances::class)
         ->mountAction('create')
@@ -227,7 +237,7 @@ it('hides tasks when absent and paid absence when present', function (): void {
 });
 
 it('lets an attendance record be edited without tripping the duplicate rule', function (): void {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->admin()->create());
     $record = attend(Staff::factory()->create(), '2026-10-01', ['tasks_done' => 3]);
 
     Livewire::test(ManageStaffAttendances::class)
@@ -239,7 +249,7 @@ it('lets an attendance record be edited without tripping the duplicate rule', fu
 });
 
 it('allows the same date for different staff', function (): void {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->admin()->create());
     attend(Staff::factory()->create(), '2026-10-01');
     $other = Staff::factory()->create();
 
@@ -250,7 +260,7 @@ it('allows the same date for different staff', function (): void {
 });
 
 it('only offers active staff on the attendance form', function (): void {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->admin()->create());
     $inactive = Staff::factory()->create(['is_active' => false, 'name' => 'Gone Person']);
 
     Livewire::test(ManageStaffAttendances::class)
@@ -259,7 +269,7 @@ it('only offers active staff on the attendance form', function (): void {
     ;
 });
 
-it('deletes attendance with staff and unassigns staff when a shift is deleted', function (): void {
+it('keeps attendance when staff are deleted and unassigns staff when a shift is deleted', function (): void {
     $shift = Shift::factory()->create();
     $staff = Staff::factory()->create(['shift_id' => $shift->id]);
     attend($staff, '2026-10-01');
@@ -268,5 +278,202 @@ it('deletes attendance with staff and unassigns staff when a shift is deleted', 
     expect($staff->fresh()->shift_id)->toBeNull();
 
     $staff->delete();
+    expect(StaffAttendance::count())->toBe(1)
+        ->and(StaffAttendance::first()->staff->is($staff))->toBeTrue()
+    ;
+
+    $staff->forceDelete();
     expect(StaffAttendance::count())->toBe(0);
+});
+
+it('restores soft-deleted staff from the table', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    $staff = Staff::factory()->create();
+    $staff->delete();
+
+    Livewire::test(ManageStaff::class)
+        ->callAction(TestAction::make('restore')->table($staff))
+        ->assertHasNoActionErrors()
+    ;
+
+    expect($staff->fresh()->trashed())->toBeFalse();
+});
+
+it('only lets admins into the panel and its pages', function (): void {
+    $this->actingAs(User::factory()->create())->get('/admin/staff')->assertForbidden();
+    $this->actingAs(User::factory()->admin()->create())->get('/admin/staff')->assertOk();
+
+    $this->actingAs(User::factory()->create());
+    Livewire::test(Payroll::class)->assertForbidden();
+});
+
+it('denies non-admins on the resource policies', function (): void {
+    $user = User::factory()->create();
+    $staff = Staff::factory()->create();
+
+    expect($user->can('viewAny', Staff::class))->toBeFalse()
+        ->and($user->can('update', $staff))->toBeFalse()
+        ->and($user->can('viewAny', Shift::class))->toBeFalse()
+        ->and($user->can('create', StaffAttendance::class))->toBeFalse()
+        ->and(User::factory()->admin()->create()->can('viewAny', Staff::class))->toBeTrue()
+    ;
+});
+
+it('rejects svg and oversized image uploads', function (string $name, int $kilobytes, string $mime): void {
+    $this->actingAs(User::factory()->admin()->create());
+    Storage::fake('public');
+
+    Livewire::test(ManageStaff::class)
+        ->callAction('create', ['name' => 'Jane', 'monthly_salary' => 3000, 'base_tasks' => 3, 'image' => UploadedFile::fake()->create($name, $kilobytes, $mime)])
+        ->assertHasActionErrors(['image'])
+    ;
+})->with([
+    'svg' => ['logo.svg', 10, 'image/svg+xml'],
+    'too large' => ['big.jpg', 3000, 'image/jpeg'],
+]);
+
+it('rejects values above the column limits', function (array $data, string $field): void {
+    $this->actingAs(User::factory()->admin()->create());
+
+    Livewire::test(ManageStaff::class)
+        ->callAction('create', $data + ['name' => 'Jane', 'monthly_salary' => 3000, 'base_tasks' => 3])
+        ->assertHasActionErrors([$field => 'max'])
+    ;
+})->with([
+    'salary' => [['monthly_salary' => 100000000], 'monthly_salary'],
+    'base tasks' => [['base_tasks' => 256], 'base_tasks'],
+]);
+
+it('rejects more than 255 tasks in a day', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    $staff = Staff::factory()->create();
+
+    Livewire::test(ManageStaffAttendances::class)
+        ->callAction('create', ['staff_id' => $staff->id, 'date' => '2026-10-01', 'is_present' => true, 'tasks_done' => 256])
+        ->assertHasActionErrors(['tasks_done' => 'max'])
+    ;
+});
+
+it('refuses to save a staff member with zero base tasks', function (): void {
+    expect(fn () => Staff::factory()->create(['base_tasks' => 0]))->toThrow(InvalidArgumentException::class);
+});
+
+it('rejects a month that is not one of the offered options', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+
+    Livewire::test(Payroll::class)
+        ->set('tableFilters.month.value', 'x')
+        ->assertStatus(422)
+    ;
+});
+
+it('keeps an inactive staff member selectable when editing their old attendance', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    $staff = Staff::factory()->create(['is_active' => false]);
+    $record = attend($staff, '2026-10-01', ['tasks_done' => 3]);
+
+    Livewire::test(ManageStaffAttendances::class)
+        ->callAction(TestAction::make('edit')->table($record), ['tasks_done' => 4])
+        ->assertHasNoActionErrors()
+    ;
+
+    expect($record->fresh()->tasks_done)->toBe(4);
+});
+
+it('builds initials across unicode whitespace', function (): void {
+    $url = Staff::factory()->make(['name' => "jane\u{00A0}doe"])->avatarUrl();
+
+    expect(base64_decode(substr($url, strlen('data:image/svg+xml;base64,'))))->toContain('>JD<');
+});
+
+it('redirects guests away from the admin pages', function (string $path): void {
+    $this->get($path)->assertRedirect();
+})->with(['/admin/payroll', '/admin/shifts', '/admin/staff', '/admin/staff-attendances']);
+
+it('stores an uploaded staff image on the public disk', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    Storage::fake('public');
+
+    Livewire::test(ManageStaff::class)
+        ->callAction('create', ['name' => 'Jane', 'monthly_salary' => 3000, 'base_tasks' => 3, 'image' => UploadedFile::fake()->image('jane.jpg')])
+        ->assertHasNoActionErrors()
+    ;
+
+    $image = Staff::where('name', 'Jane')->value('image');
+
+    expect($image)->toStartWith('staff/');
+    Storage::disk('public')->assertExists($image);
+});
+
+it('rejects a non-image upload', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    Storage::fake('public');
+
+    Livewire::test(ManageStaff::class)
+        ->callAction('create', ['name' => 'Jane', 'monthly_salary' => 3000, 'base_tasks' => 3, 'image' => UploadedFile::fake()->create('cv.pdf', 10, 'application/pdf')])
+        ->assertHasActionErrors(['image'])
+    ;
+
+    expect(Staff::count())->toBe(0);
+});
+
+it('shows each month only its own amount', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    $staff = Staff::factory()->create();
+    attend($staff, now()->startOfMonth()->toDateString(), ['tasks_done' => 3]);
+    attend($staff, now()->subMonth()->startOfMonth()->toDateString(), ['tasks_done' => 4]);
+
+    Livewire::test(Payroll::class)
+        ->assertSee('100.00')
+        ->assertDontSee('133.33')
+        ->filterTable('month', now()->subMonth()->format('Y-m'))
+        ->assertSee('133.33')
+        ->assertDontSee('100.00')
+    ;
+});
+
+it('shows zero for a month without attendance', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    $staff = Staff::factory()->create();
+    attend($staff, now()->toDateString());
+
+    Livewire::test(Payroll::class)
+        ->filterTable('month', now()->subMonths(11)->format('Y-m'))
+        ->assertSee('0.00')
+        ->assertDontSee('100.00')
+    ;
+});
+
+it('filters attendance by staff and by date', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    $first = attend(Staff::factory()->create(), '2026-10-01');
+    $second = attend(Staff::factory()->create(), '2026-10-02');
+
+    Livewire::test(ManageStaffAttendances::class)
+        ->filterTable('staff', $first->staff_id)
+        ->assertCanSeeTableRecords([$first])
+        ->assertCanNotSeeTableRecords([$second])
+        ->resetTableFilters()
+        ->filterTable('date', ['on' => '2026-10-02'])
+        ->assertCanSeeTableRecords([$second])
+        ->assertCanNotSeeTableRecords([$first])
+    ;
+});
+
+it('deletes attendance and staff from their tables', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    $record = attend(Staff::factory()->create(), '2026-10-01');
+
+    Livewire::test(ManageStaffAttendances::class)
+        ->callAction(TestAction::make('delete')->table($record))
+        ->assertHasNoActionErrors()
+    ;
+    expect(StaffAttendance::count())->toBe(0);
+
+    $staff = Staff::factory()->create();
+    Livewire::test(ManageStaff::class)
+        ->callAction(TestAction::make('delete')->table($staff))
+        ->assertHasNoActionErrors()
+    ;
+    expect($staff->fresh()->trashed())->toBeTrue();
 });

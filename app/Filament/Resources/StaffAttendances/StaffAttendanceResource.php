@@ -21,6 +21,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rules\Unique;
 
 class StaffAttendanceResource extends Resource
@@ -33,7 +34,14 @@ class StaffAttendanceResource extends Resource
         return $schema
             ->components([
                 Select::make('staff_id')
-                    ->relationship('staff', 'name', fn ($query) => $query->where('is_active', true))
+                    ->relationship(
+                        'staff',
+                        'name',
+                        // keep the record's own staff selectable when they were deactivated after the entry
+                        fn (Builder $query, ?StaffAttendance $record) => $query->where(fn (Builder $q) => $q
+                            ->where('is_active', true)
+                            ->when($record, fn (Builder $q) => $q->orWhere('id', $record->staff_id))),
+                    )
                     ->searchable()
                     ->preload()
                     ->required(),
@@ -51,6 +59,7 @@ class StaffAttendanceResource extends Resource
                     ->required()
                     ->numeric()
                     ->minValue(0)
+                    ->maxValue(255)
                     ->default(3)
                     ->visible(fn (Get $get): bool => (bool) $get('is_present')),
                 Toggle::make('is_paid_absence')
@@ -94,7 +103,7 @@ class StaffAttendanceResource extends Resource
                 SelectFilter::make('staff')->relationship('staff', 'name'),
                 Filter::make('date')
                     ->schema([DatePicker::make('on')])
-                    ->query(fn ($query, array $data) => $query->when($data['on'], fn ($q, $d) => $q->whereDate('date', $d))),
+                    ->query(fn ($query, array $data) => $query->when($data['on'], fn ($q, $d) => $q->where('date', $d))),
             ])
             ->recordActions([
                 EditAction::make(),

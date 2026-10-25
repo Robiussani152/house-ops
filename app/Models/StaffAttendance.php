@@ -19,7 +19,7 @@ class StaffAttendance extends Model
      */
     public function staff(): BelongsTo
     {
-        return $this->belongsTo(Staff::class);
+        return $this->belongsTo(Staff::class)->withTrashed();
     }
 
     /**
