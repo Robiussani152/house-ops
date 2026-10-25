@@ -2,4 +2,10 @@
 
 namespace App\Policies;
 
-class ShiftPolicy extends AdminOnlyPolicy {}
+class ShiftPolicy extends ModulePolicy
+{
+    protected function module(): string
+    {
+        return 'shifts';
+    }
+}

@@ -6,9 +6,9 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Salary and attendance data is visible to admins only.
+ * Managing accounts and roles is never delegable: anyone who could edit either could grant themselves more access.
  */
-abstract class AdminOnlyPolicy
+abstract class SuperAdminPolicy
 {
     public function viewAny(User $user): bool
     {

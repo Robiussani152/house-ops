@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\StaffAttendances;
 
 use App\Filament\Resources\StaffAttendances\Pages\ManageStaffAttendances;
+use App\Models\Staff;
 use App\Models\StaffAttendance;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -14,6 +15,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
@@ -44,6 +46,15 @@ class StaffAttendanceResource extends Resource
                     )
                     ->searchable()
                     ->preload()
+                    ->live()
+                    // default the day's tasks to this staff member's base tasks; editing keeps the saved count
+                    ->afterStateUpdated(function (Set $set, mixed $state, string $operation): void {
+                        $baseTasks = $operation === 'create' && $state ? Staff::whereKey($state)->value('base_tasks') : null;
+
+                        if ($baseTasks !== null) {
+                            $set('tasks_done', $baseTasks);
+                        }
+                    })
                     ->required(),
                 DatePicker::make('date')
                     ->required()
@@ -55,11 +66,15 @@ class StaffAttendanceResource extends Resource
                 Toggle::make('is_present')
                     ->default(true)
                     ->live(),
-                TextInput::make('tasks_done')
+                Select::make('tasks_done')
                     ->required()
-                    ->numeric()
-                    ->minValue(0)
-                    ->maxValue(255)
+                    // 0 up to base tasks + 5 extra, never below the saved value so editing an old record still works
+                    ->options(function (Get $get, ?StaffAttendance $record): array {
+                        $baseTasks = Staff::whereKey($get('staff_id'))->value('base_tasks') ?? 3;
+                        $tasks = range(0, max($baseTasks + 5, $record === null ? 0 : $record->tasks_done));
+
+                        return array_combine($tasks, $tasks);
+                    })
                     ->default(3)
                     ->visible(fn (Get $get): bool => (bool) $get('is_present')),
                 Toggle::make('is_paid_absence')

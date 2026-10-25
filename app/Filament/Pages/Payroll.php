@@ -77,7 +77,7 @@ class Payroll extends Page implements HasTable
 
     public static function canAccess(): bool
     {
-        return (bool) auth()->user()?->is_admin;
+        return (bool) auth()->user()?->canAccessModule('payroll.view');
     }
 
     /**

@@ -344,13 +344,13 @@ it('rejects values above the column limits', function (array $data, string $fiel
     'base tasks' => [['base_tasks' => 256], 'base_tasks'],
 ]);
 
-it('rejects more than 255 tasks in a day', function (): void {
+it('rejects a task count outside the dropdown options', function (): void {
     $this->actingAs(User::factory()->admin()->create());
     $staff = Staff::factory()->create();
 
     Livewire::test(ManageStaffAttendances::class)
-        ->callAction('create', ['staff_id' => $staff->id, 'date' => '2026-10-01', 'is_present' => true, 'tasks_done' => 256])
-        ->assertHasActionErrors(['tasks_done' => 'max'])
+        ->callAction('create', ['staff_id' => $staff->id, 'date' => '2026-10-01', 'is_present' => true, 'tasks_done' => 99])
+        ->assertHasActionErrors(['tasks_done'])
     ;
 });
 
@@ -476,4 +476,40 @@ it('deletes attendance and staff from their tables', function (): void {
         ->assertHasNoActionErrors()
     ;
     expect($staff->fresh()->trashed())->toBeTrue();
+});
+
+it('fills tasks done from the selected staff member\'s base tasks', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    $four = Staff::factory()->create(['base_tasks' => 4]);
+    $two = Staff::factory()->create(['base_tasks' => 2]);
+
+    Livewire::test(ManageStaffAttendances::class)
+        ->mountAction('create')
+        ->fillForm(['staff_id' => $four->id])
+        ->assertSchemaStateSet(['tasks_done' => 4])
+        ->fillForm(['staff_id' => $two->id])
+        ->assertSchemaStateSet(['tasks_done' => 2])
+    ;
+});
+
+it('does not overwrite saved tasks when editing attendance', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    $staff = Staff::factory()->create(['base_tasks' => 4]);
+    $record = attend($staff, '2026-10-01', ['tasks_done' => 6]);
+
+    Livewire::test(ManageStaffAttendances::class)
+        ->mountAction(TestAction::make('edit')->table($record))
+        ->assertSchemaStateSet(['tasks_done' => 6])
+    ;
+});
+
+it('offers tasks from zero up to base tasks plus five', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    $staff = Staff::factory()->create(['base_tasks' => 3]);
+
+    Livewire::test(ManageStaffAttendances::class)
+        ->mountAction('create')
+        ->fillForm(['staff_id' => $staff->id])
+        ->assertFormFieldExists('tasks_done', fn ($field) => array_keys($field->getOptions()) === range(0, 8))
+    ;
 });

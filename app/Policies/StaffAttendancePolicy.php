@@ -2,4 +2,10 @@
 
 namespace App\Policies;
 
-class StaffAttendancePolicy extends AdminOnlyPolicy {}
+class StaffAttendancePolicy extends ModulePolicy
+{
+    protected function module(): string
+    {
+        return 'attendance';
+    }
+}
