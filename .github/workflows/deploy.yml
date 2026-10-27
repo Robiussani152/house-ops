@@ -30,7 +30,19 @@ jobs:
           install -m 700 -d ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -p "${{ secrets.SSH_PORT }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+          for attempt in 1 2 3; do
+            if ssh-keyscan -T 10 -p "${{ secrets.SSH_PORT }}" "${{ secrets.SSH_HOST }}" > /tmp/known_hosts_entry 2>/dev/null && [ -s /tmp/known_hosts_entry ]; then
+              cat /tmp/known_hosts_entry >> ~/.ssh/known_hosts
+              break
+            fi
+
+            if [ "${attempt}" -eq 3 ]; then
+              echo "Failed to fetch SSH host key for ${{ secrets.SSH_HOST }}:${{ secrets.SSH_PORT }} after 3 attempts." >&2
+              exit 1
+            fi
+
+            sleep 3
+          done
 
       # shortcut: assets land before the code pull, so a failed release leaves new assets with old code; fine while builds are additive
       - name: Upload built assets
