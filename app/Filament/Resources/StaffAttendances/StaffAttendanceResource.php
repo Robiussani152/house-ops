@@ -41,9 +41,10 @@ class StaffAttendanceResource extends Resource
                     ->relationship(
                         'staff',
                         'name',
-                        // keep the record's own staff selectable when they were deactivated after the entry
-                        fn (Builder $query, ?StaffAttendance $record) => $query->where(fn (Builder $q) => $q
-                            ->where('is_active', true)
+                        // active staff, plus staff deleted after the selected date, plus the record's own staff
+                        fn (Builder $query, Get $get, ?StaffAttendance $record) => $query->where(fn (Builder $q) => $q
+                            ->where(fn (Builder $active) => $active->whereNull('deleted_at')->where('is_active', true))
+                            ->when($get('date'), fn (Builder $q, string $date) => $q->orWhereDate('deleted_at', '>', $date))
                             ->when($record, fn (Builder $q) => $q->orWhere('id', $record->staff_id))),
                     )
                     ->searchable()
@@ -60,6 +61,7 @@ class StaffAttendanceResource extends Resource
                     ->required(),
                 DatePicker::make('date')
                     ->required()
+                    ->live()
                     ->default(now())
                     ->unique(
                         ignoreRecord: true,
