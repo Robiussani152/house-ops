@@ -513,3 +513,14 @@ it('offers tasks from zero up to base tasks plus five', function (): void {
         ->assertFormFieldExists('tasks_done', fn ($field) => array_keys($field->getOptions()) === range(0, 8))
     ;
 });
+
+it('always pays leave and clears the absence type when present', function (): void {
+    $staff = Staff::factory()->create();
+    $leave = attend($staff, '2026-10-01', ['is_present' => false, 'tasks_done' => 0, 'absence_type' => 'leave']);
+    $present = attend($staff, '2026-10-02', ['absence_type' => 'holiday']);
+
+    expect($leave->is_paid_absence)->toBeTrue()
+        ->and($present->absence_type)->toBeNull()
+        ->and($staff->payrollFor(now()->setDate(2026, 10, 15))['paid_absence_days'])->toBe(1)
+    ;
+});
