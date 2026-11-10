@@ -9,6 +9,7 @@ use App\Models\Staff;
 use App\Models\StaffAttendance;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
+use Filament\Forms\Components\Select;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -522,5 +523,32 @@ it('always pays leave and clears the absence type when present', function (): vo
     expect($leave->is_paid_absence)->toBeTrue()
         ->and($present->absence_type)->toBeNull()
         ->and($staff->payrollFor(now()->setDate(2026, 10, 15))['paid_absence_days'])->toBe(1)
+    ;
+});
+
+it('offers active staff, and deleted staff only for dates before they were deleted', function (): void {
+    $this->actingAs(User::factory()->admin()->create());
+    $active = Staff::factory()->create();
+    $inactive = Staff::factory()->create(['is_active' => false]);
+    $deleted = Staff::factory()->create();
+    $deleted->delete();
+
+    $options = function (string $date): array {
+        $found = [];
+        Livewire::test(ManageStaffAttendances::class)
+            ->mountAction('create')
+            ->fillForm(['date' => $date])
+            ->assertSchemaComponentExists('staff_id', 'mountedActionSchema0', function (Select $select) use (&$found): bool {
+                $found = array_keys($select->getSearchResults(''));
+
+                return true;
+            })
+        ;
+
+        return $found;
+    };
+
+    expect($options(now()->subDay()->toDateString()))->toContain($active->id, $deleted->id)->not->toContain($inactive->id)
+        ->and($options(now()->addDay()->toDateString()))->toContain($active->id)->not->toContain($deleted->id)
     ;
 });
