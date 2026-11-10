@@ -79,9 +79,15 @@ class StaffAttendanceResource extends Resource
                     })
                     ->default(3)
                     ->visible(fn (Get $get): bool => (bool) $get('is_present')),
-                Toggle::make('is_paid_absence')
-                    ->label('Paid absence')
+                Select::make('absence_type')
+                    ->options([StaffAttendance::HOLIDAY => 'Holiday taken', StaffAttendance::LEAVE => 'Leave given'])
+                    ->default(StaffAttendance::HOLIDAY)
+                    ->required()
+                    ->live()
                     ->visible(fn (Get $get): bool => !$get('is_present')),
+                Toggle::make('is_paid_absence')
+                    ->label('Paid holiday')
+                    ->visible(fn (Get $get): bool => !$get('is_present') && $get('absence_type') === StaffAttendance::HOLIDAY),
                 TextInput::make('note'),
             ])
         ;
@@ -103,6 +109,9 @@ class StaffAttendanceResource extends Resource
                 TextColumn::make('tasks_done')
                     ->numeric()
                     ->sortable(),
+                TextColumn::make('absence_type')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): ?string => $state === null ? null : ucfirst($state)),
                 IconColumn::make('is_paid_absence')
                     ->boolean(),
                 TextColumn::make('note')
