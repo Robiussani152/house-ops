@@ -2,6 +2,9 @@
 
 use App\Models\Staff;
 use App\Models\StaffAttendance;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 it('adds attendance only for active staff without a record today', function () {
     $this->travelTo(now('Asia/Dhaka')->setTime(23, 30));
